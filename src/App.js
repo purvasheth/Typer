@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
 import "./styles.css";
+import loader from "./images/loader.gif";
+import { format } from "./utils";
 
-export default function App({ prop }) {
+export default function App() {
   const [text, setText] = useState("");
   const [quote, setQuote] = useState("");
   const [rows, setRows] = useState(5);
-  const [focus, setFocus] = useState(true);
+  const [isloading, setLoading] = useState(true);
+  const [focus, setFocus] = useState(false);
   const [start, setStart] = useState(new Date());
   const [mistakes, setMistakes] = useState(new Set());
   const [speed, setSpeed] = useState(0);
@@ -14,24 +17,21 @@ export default function App({ prop }) {
     setSpeed(0);
     setText("");
     setMistakes(new Set());
-
-    fetch("https://quote-garden.herokuapp.com/api/v2/quotes/random")
+    setLoading(true);
+    fetch("https://quote-garden.herokuapp.com/api/v3/quotes/random")
       .then((response) => response.json())
-      .then((data) => {
-        const { quote } = data;
-        const { quoteText, quoteAuthor } = quote;
-
-        const formattedQuote =
-          quoteText.split(" ").join("_") +
-          "_-_" +
-          quoteAuthor.split(" ").join("_");
+      .then((json) => {
+        const { data } = json;
+        const { quoteText, quoteAuthor } = data[0];
+        const formattedQuote = format(quoteText) + "_-_" + format(quoteAuthor);
         setQuote(formattedQuote);
-        setRows(Math.ceil(formattedQuote.length / 100));
+        setRows(Math.ceil(formattedQuote.length / 78));
+        setLoading(false);
       });
   };
   const checkMistakes = (e) => {
     const { value } = e.target;
-    const formatValue = value.split(" ").join("_");
+    const formatValue = format(value);
     if (formatValue !== quote.slice(0, formatValue.length)) {
       setText((prev) => (prev ? quote.slice(0, prev.length) : ""));
       setMistakes((prev) => new Set([...prev, text.length]));
@@ -41,7 +41,6 @@ export default function App({ prop }) {
         setFocus(false);
       }
     }
-    console.log(mistakes);
   };
   const avoidBackspace = (e) => {
     if (e.keyCode === 8) {
@@ -56,37 +55,45 @@ export default function App({ prop }) {
   useEffect(() => {
     if (focus) {
       setStart(new Date());
-      console.log("start");
     } else {
       const time = (new Date() - start) / 1000;
       const speed = (quote.length * 12) / time;
       setSpeed(speed);
     }
   }, [focus]);
+
   return (
     <div className="App">
-      <h1 align="center">Typing Practice</h1>
+      <h1 className="heading" align="center">
+        Typer
+      </h1>
       <div className="arena" style={{ height: `${rows + 3}rem` }}>
-        <textarea
-          cols="100"
-          rows={rows}
-          style={{ zIndex: 10 }}
-          value={text}
-          disabled={speed !== 0}
-          onChange={(e) => checkMistakes(e)}
-          onKeyDown={(e) => avoidBackspace(e)}
-          onFocus={() => setFocus(true)}
-        ></textarea>
-        <textarea
-          cols="100"
-          rows={rows}
-          disabled
-          style={{ color: "gray" }}
-          value={quote}
-        />
+        {isloading ? (
+          <img src={loader} alt="Loding..." height="100px" />
+        ) : (
+          <>
+            <textarea
+              cols="80"
+              rows={rows}
+              style={{ zIndex: 3 }}
+              value={text}
+              disabled={speed !== 0}
+              onChange={(e) => checkMistakes(e)}
+              onKeyDown={(e) => avoidBackspace(e)}
+              onFocus={() => setFocus(true)}
+            ></textarea>
+            <textarea
+              cols="80"
+              rows={rows}
+              disabled
+              style={{ color: "gray", backgroundColor: "white" }}
+              value={quote}
+            />
+          </>
+        )}
       </div>
       {text && (
-        <React.Fragment>
+        <>
           <p align="center">
             Mistakes{" "}
             {mistakes.size > 0 ? (
@@ -97,9 +104,7 @@ export default function App({ prop }) {
           </p>
 
           <div className="mistake">
-            {text
-              .split(" ")
-              .join("_")
+            {format(text)
               .split("")
               .map((char, index) =>
                 mistakes.has(index) ? (
@@ -111,7 +116,7 @@ export default function App({ prop }) {
                 )
               )}
           </div>
-        </React.Fragment>
+        </>
       )}
       {speed !== 0 && (
         <div style={{ textAlign: "center" }}>
